@@ -1,6 +1,14 @@
-train: ../train/images
-val: ../valid/images
-test: ../test/images
+# No `path:` key on purpose — Ultralytics then resolves these relative to THIS
+# file's own folder (data/), so it works on macOS/Windows from any working dir.
+train: train/images
+val: valid/images
+test: test/images
 
 nc: 5
-names: ['Glass', 'Metal', 'Paper', 'Plastic', 'Waste']
+
+names:
+  0: Glass
+  1: Metal
+  2: Paper
+  3: Plastic
+  4: Waste

@@ -1,0 +1,15 @@
+# Python environment
+.venv/
+__pycache__/
+*.pyc
+
+# YOLO / training artifacts
+runs/
+*.pt
+data/data.resolved.yaml
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
