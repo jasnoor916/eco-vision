@@ -1,9 +1,32 @@
-# Python environment
+# Python
 __pycache__/
 *.pyc
+*.pyo
 
-# Jupyter
-.ipynb_checkpoints/
+# Virtual environments
+venv/
+.venv/
+
+# Environment variables
+.env
+
+# YOLO outputs
+runs/
+
+# Evaluation crops
+eval/
+
+# Cache
+*.cache
+
+# Model checkpoints (optional)
+*.pt
 
 # macOS
 .DS_Store
+
+# VS Code
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints/
