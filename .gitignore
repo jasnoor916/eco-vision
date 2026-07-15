@@ -1,9 +1,25 @@
-# Python environment
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Virtual environments
+venv/
+.venv/
+
+# Environment variables
+.env
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# YOLO outputs
+runs/
+eval/
 
 # Jupyter
 .ipynb_checkpoints/
 
-# macOS
-.DS_Store
+

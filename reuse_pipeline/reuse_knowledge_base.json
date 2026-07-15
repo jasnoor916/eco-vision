@@ -1,0 +1,61 @@
+{
+  "Glass": {
+    "intact": [
+      {"suggestion": "reuse as a storage jar for dry goods, spices, or leftovers", "source": "EPA WARM reuse guidance"},
+      {"suggestion": "repurpose as a drinking glass or small vase", "source": "EPA WARM reuse guidance"}
+    ],
+    "damaged": [],
+    "dirty": [
+      {"suggestion": "clean and sanitize thoroughly before considering reuse; otherwise recycle", "source": "EPA WARM reuse guidance"}
+    ],
+    "food_contaminated": [
+      {"suggestion": "rinse residue completely before reuse; if contamination persists, recycle instead", "source": "EPA WARM reuse guidance"}
+    ]
+  },
+  "Metal": {
+    "intact": [
+      {"suggestion": "repurpose as a pen holder, planter, or storage tin", "source": "EPA WARM reuse guidance"},
+      {"suggestion": "use as a small container for hardware or craft supplies", "source": "EPA WARM reuse guidance"}
+    ],
+    "damaged": [
+      {"suggestion": "if only dented (not punctured/rusted through), still usable as a rough-use storage container", "source": "EPA WARM reuse guidance"}
+    ],
+    "dirty": [
+      {"suggestion": "wash and dry to prevent rust before considering reuse", "source": "EPA WARM reuse guidance"}
+    ],
+    "food_contaminated": [
+      {"suggestion": "rinse thoroughly; food residue on metal attracts pests if reused unwashed", "source": "EPA WARM reuse guidance"}
+    ]
+  },
+  "Paper": {
+    "intact": [
+      {"suggestion": "use as scratch paper, notebook filler, or packaging cushioning", "source": "EPA WARM reuse guidance"}
+    ],
+    "damaged": [
+      {"suggestion": "shred for compost, packaging material, or animal bedding", "source": "EPA WARM reuse guidance"}
+    ],
+    "dirty": [],
+    "food_contaminated": [
+      {"suggestion": "food-soiled paper is generally not reusable or recyclable; compost if uncoated", "source": "EPA WARM reuse guidance"}
+    ]
+  },
+  "Plastic": {
+    "intact": [
+      {"suggestion": "repurpose as a planter, storage container, or organizer bin", "source": "EPA WARM reuse guidance"},
+      {"suggestion": "use as a refillable container for bulk goods or liquids", "source": "EPA WARM reuse guidance"}
+    ],
+    "damaged": [],
+    "dirty": [
+      {"suggestion": "clean thoroughly before considering reuse; otherwise recycle", "source": "EPA WARM reuse guidance"}
+    ],
+    "food_contaminated": [
+      {"suggestion": "rinse residue completely; some plastics degrade reuse safety after repeated food contact, check resin type", "source": "EPA WARM reuse guidance"}
+    ]
+  },
+  "Waste": {
+    "intact": [],
+    "damaged": [],
+    "dirty": [],
+    "food_contaminated": []
+  }
+}
