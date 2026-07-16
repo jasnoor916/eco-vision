@@ -182,7 +182,10 @@ def run_detection(image_path: str, model: YOLO) -> list[dict]:
 
 
 def crop_object(image: Image.Image, bbox: list) -> Image.Image:
-    x1, y1, x2, y2 = bbox
+    # FIX: bbox values are rounded floats (e.g. 142.3) from run_detection.
+    # PIL.Image.crop() expects integer coordinates; passing floats can raise
+    # a TypeError depending on Pillow version. Cast to int here.
+    x1, y1, x2, y2 = (int(v) for v in bbox)
     return image.crop((x1, y1, x2, y2))
 
 
@@ -226,7 +229,7 @@ def _assess_condition_gemini(crop: Image.Image, category: str) -> dict:
             temperature=0,
         ),
     )
-    return _parse_json_response(response.text)   
+    return _parse_json_response(response.text)
 
 def _assess_condition_nim(crop: Image.Image, category: str) -> dict:
     _register_api_call("NIM condition assessment (fallback)")
@@ -332,25 +335,27 @@ Rules:
     response = _groq_client.chat.completions.create(
         model=GROQ_TEXT_MODEL,
         messages=[{"role": "user", "content": prompt}],
-        max_completion_tokens=200,
+        max_completion_tokens=200,  # NOTE: if your installed groq SDK raises
+                                    # "unexpected keyword argument", change this
+                                    # to max_tokens=200 instead.
         reasoning_effort="low",
     )
 
     choice = response.choices[0]
 
-    print("\n===== GROQ DEBUG =====")
-    print("finish_reason:", choice.finish_reason)
-    print("message:", choice.message)
-    print("======================\n")
-
     raw_text = choice.message.content or ""
     if not raw_text.strip():
         return ReuseResult(
-        eligible=False,
-        reason="Groq returned an empty response."
-    )
+            eligible=False,
+            reason="Groq returned an empty response."
+        )
+
     parsed = _parse_json_response(raw_text)
-    if not parsed.get("suggestion"):
+
+    # FIX: was `parsed.get("suggestion")`, but the schema requested above has
+    # no "suggestion" key — it's title/why/steps/source_citation. The old
+    # check made every successful Groq response look like a parse failure.
+    if not parsed.get("title"):
         print(f"[phrase_reuse_suggestion] Failed to parse Groq response as JSON. Raw text was:\n{raw_text!r}")
         return ReuseResult(
             eligible=False,
