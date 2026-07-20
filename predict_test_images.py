@@ -10,7 +10,7 @@ from ultralytics import YOLO
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-DEFAULT_MODEL = PROJECT_ROOT / "models" / "recycling_model.pt"
+DEFAULT_MODEL = PROJECT_ROOT / "models" / "best.pt"
 DEFAULT_SOURCE = PROJECT_ROOT / "data" / "test" / "images"
 DEFAULT_OUTPUT = PROJECT_ROOT / "runs" / "test_predictions"
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}

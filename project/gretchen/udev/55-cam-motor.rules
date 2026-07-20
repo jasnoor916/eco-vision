@@ -1,0 +1,3 @@
+KERNEL=="video*", ATTR{index}=="0", SYMLINK+="grt_cam"
+KERNEL=="ttyUSB*", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6014", SYMLINK+="grt_motor"
+

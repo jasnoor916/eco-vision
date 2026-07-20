@@ -19,6 +19,9 @@ venv/
 runs/
 eval/
 
+# Generated TTS audio
+output.mp3
+
 # Jupyter
 .ipynb_checkpoints/
 

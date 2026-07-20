@@ -1,2 +1,23 @@
+# Install everything with:  pip install -r requirements.txt
+# Run this from the project root — the -e paths below are relative to it.
+
+# --- Detection + training -------------------------------------------------
 ultralytics>=8.3.0
+torch>=2.0
+opencv-python>=4.8
+numpy>=1.24
 matplotlib>=3.7
+
+# --- Reuse recommendations (project/suggest.py) ---------------------------
+groq>=0.11
+
+# --- Text to speech (project/suggest.py) ----------------------------------
+# Playback uses macOS `afplay`; on Windows/Linux swap that call in suggest.py.
+edge-tts>=6.1
+
+# --- Robot libraries, vendored into this repo -----------------------------
+# Installed editable so `import gretchen` / `import dynamixel_sdk` resolve to
+# the copies in project/. gretchen's own setup.py leaves install_requires
+# commented out, so dynamixel_sdk is listed here explicitly.
+-e ./project/lib/DynamixelSDK/python
+-e ./project/gretchen/course_material/lib

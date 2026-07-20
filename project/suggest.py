@@ -4,12 +4,9 @@ from gretchen.robot import Robot
 from ultralytics import YOLO
 from groq import Groq
 import textwrap
-import pyttsx3
 import asyncio
 import edge_tts
 import os
-# Initialize the engine
-engine = pyttsx3.init()
 
 # TTS Configuration
 VOICE = "en-GB-SoniaNeural"

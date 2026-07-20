@@ -1,0 +1,9 @@
+setup.py
+src/gretchen/__init__.py
+src/gretchen/camera.py
+src/gretchen/motors.py
+src/gretchen/robot.py
+src/gretchen.egg-info/PKG-INFO
+src/gretchen.egg-info/SOURCES.txt
+src/gretchen.egg-info/dependency_links.txt
+src/gretchen.egg-info/top_level.txt
