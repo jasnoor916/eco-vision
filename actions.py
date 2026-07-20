@@ -32,7 +32,17 @@ COOLDOWN = 10  # seconds — minimum gap between advice calls for the same label
 GROQ_API_KEY = "GROQ_API_KEY_REDACTED"
 client = Groq(api_key=GROQ_API_KEY)
 
-robot = Robot('COM3', 0)
+# Temporary startup check for the configured Groq API key.
+try:
+    completion = client.chat.completions.create(
+        messages=[{"role": "user", "content": "Say hello in one word."}],
+        model="openai/gpt-oss-120b",
+    )
+    print("GROQ TEST SUCCESS:", completion.choices[0].message.content)
+except Exception as e:
+    print("GROQ TEST FAILED:", e)
+
+robot = Robot('/dev/tty.usbserial-FT94ELHH', 0)
 robot.start()
 robot.start_motors()
 
@@ -43,15 +53,19 @@ display_text = "Show me something to recycle!"
 
 def nod():
     for _ in range(3):
-        robot.up(); time.sleep(0.3)
-        robot.down(); time.sleep(0.3)
+        robot.up()
+        time.sleep(0.3)
+        robot.down()
+        time.sleep(0.3)
     robot.up()
 
 
 def shake():
     for _ in range(3):
-        robot.left(); time.sleep(0.3)
-        robot.right(); time.sleep(0.3)
+        robot.left()
+        time.sleep(0.3)
+        robot.right()
+        time.sleep(0.3)
     robot.left()
 
 
@@ -94,7 +108,7 @@ def get_recycling_advice(item_label: str) -> str:
                     "Provide a short reason."
                 )},
             ],
-            model="llama-3.3-70b-versatile",
+            model="openai/gpt-oss-120b",
         )
         response = completion.choices[0].message.content
 
@@ -113,7 +127,8 @@ def get_recycling_advice(item_label: str) -> str:
 async def _speak_async(text: str):
     communicate = edge_tts.Communicate(text, VOICE)
     await communicate.save("output.mp3")
-    os.system("afplay output.mp3")  # macOS; swap for `mpg123`/`ffplay` on Linux
+    # macOS; swap for `mpg123`/`ffplay` on Linux
+    os.system("afplay output.mp3")
 
 
 def trigger(category: str, confidence: float) -> str:

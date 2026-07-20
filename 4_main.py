@@ -16,11 +16,11 @@ import actions
 # ----------------------------------------------------------------------
 # CONFIG
 # ----------------------------------------------------------------------
-HAND_MODEL_PATH = r"C:\Users\Jun Ci\workspace\gretchen\gretchen_project\eco-vision\YOLO11n-pose-hands\runs\pose\train\weights\best.pt"  # from your friend's fine-tuning
+HAND_MODEL_PATH = "models/Hand detection/best.pt"  # from your friend's fine-tuning
 
 # Start with the existing YOLOv8n bottle/cup detector (matches suggest.py).
 # Swap to your custom Plastic/Paper/General model once trained.
-ITEM_MODEL_PATH = r"C:\Users\Jun Ci\workspace\gretchen\gretchen_project\eco-vision\best.pt"
+ITEM_MODEL_PATH = "models/best.pt"
 TARGET_CLASSES = [39, 41]  # COCO: 39=bottle, 41=cup — set to None to use all classes
 
 HAND_CONF = 0.5
@@ -125,17 +125,13 @@ def main():
                     if TARGET_CLASSES is not None:
                         kwargs["classes"] = TARGET_CLASSES
                     
-                    try:
-                        # Try prediction with processed crop
-                        item_results = item_model.predict(crop_processed, **kwargs)[0]
-                        print(f"item boxes found: {len(item_results.boxes)}", 
-                            [item_model.names[int(c)] for c in item_results.boxes.cls] if len(item_results.boxes) else "none")
-                        
-                        if len(item_results.boxes) > 0:
-                            best_i = int(item_results.boxes.conf.argmax())
-                            cls_id = int(item_results.boxes.cls[best_i])
-                            conf_this_frame = float(item_results.boxes.conf[best_i])
-                            label_this_frame = item_model.names[cls_id]
+                    item_results = item_model.predict(crop_processed, **kwargs)[0]
+                    print(
+                        f"item boxes found: {len(item_results.boxes)}",
+                        [item_model.names[int(c)] for c in item_results.boxes.cls]
+                        if len(item_results.boxes)
+                        else "none",
+                    )
 
                     if len(item_results.boxes) > 0:
                         best_i = int(item_results.boxes.conf.argmax())
