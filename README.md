@@ -36,8 +36,6 @@ The second command runs the trained detector on three test images and writes
 annotated copies to `runs/test_predictions/`. **No robot hardware needed** — this
 is the fastest way to confirm the whole setup works.
 
-> **Windows / Linux:** everything above works, with two exceptions noted under
-> [Platform notes](#platform-notes).
 
 ---
 
