@@ -81,7 +81,7 @@ path. `requirements.txt` handles this for you.
 ### Batch predictions — no hardware required
 
 ```bash
-./.venv/bin/python predict_test_images.py --count 10
+python predict_test_images.py --count 10
 ```
 
 | Flag | Default | Meaning |
@@ -96,7 +96,7 @@ path. `requirements.txt` handles this for you.
 ### Training
 
 ```bash
-./.venv/bin/python train.py
+python train.py
 ```
 
 Selects CUDA on an NVIDIA machine, MPS on Apple Silicon, and CPU otherwise.
@@ -106,7 +106,7 @@ faster runs on MPS or CUDA.
 ### Robot demo — requires hardware
 
 ```bash
-./.venv/bin/python project/suggest.py
+python project/suggest.py
 ```
 
 Detects bottles and cups from the robot camera, asks a Groq-hosted Llama model
@@ -119,7 +119,7 @@ The Groq API key and the robot serial port are set at the top of
 ### Live camera detection — requires hardware
 
 ```bash
-./.venv/bin/python inference.py
+python inference.py
 ```
 
 ---
@@ -168,31 +168,4 @@ then reload the window.
 needs a real terminal. This appears when running under a Jupyter kernel, CI, or
 a piped shell — run from an interactive terminal instead.
 
-**Each teammate must install separately.** `pip install -e` records an absolute
-path into the virtualenv, so the install cannot be committed and shared.
 
----
-
-## Known issues
-
-- `inference.py` loads stock `yolo26s.pt` rather than the trained
-  `models/best.pt`, so it detects generic COCO objects instead of the five waste
-  classes.
-- `inference.py` hardcodes the Windows port `COM3` while `project/suggest.py`
-  uses a macOS port; the two files assume different machines.
-
----
-
-## Notes
-
-- `.venv/`, `runs/`, `eval/`, and `output.mp3` are generated artifacts and are
-  git-ignored.
-
----
-
-## Course context
-
-**M155.006900 – First Steps in Programming a Humanoid AI Robot**, Seoul National
-University. The course covers robotics, computer vision, machine learning, deep
-learning, custom object detection, and AI for humanoid robots, assessed through
-a team-based robotics and AI project.
