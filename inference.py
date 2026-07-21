@@ -32,12 +32,12 @@ def parse_args():
     parser.add_argument(
         "--camera",
         type=camera_source,
-        default=None,
+        default=1,
         help="Camera index or device path (default: 0 for laptop; ROBOT_CAMERA for robot).",
     )
     parser.add_argument(
         "--motor-port",
-        default=os.getenv("ROBOT_MOTOR_PORT", "/dev/tty.usbserial-FT94ELHH"),
+        default="COM3",
         help="Robot motor serial port (used only in robot mode).",
     )
     return parser.parse_args()
@@ -83,7 +83,7 @@ def main():
     args = parse_args()
     from ultralytics import YOLO
 
-    model = YOLO("yolo26s.pt")
+    model = YOLO(r"models\best.pt")
     read_frame, close_camera, source = open_camera(args)
     print(f"Running in {args.mode} mode with camera {source!r}. Press any key to exit.")
 

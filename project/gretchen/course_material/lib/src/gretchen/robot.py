@@ -31,7 +31,7 @@ TORQUE_ENABLE               = 1                 # Value for enabling the torque
 #
 ################################################################################
 class Robot:
-    def __init__(self, motor_device_path = '/dev/grt_motor', camera_device_path = '/dev/grt_cam'):
+    def __init__(self, motor_device_path = 'COM3', camera_device_path = 0):
         print('Initializing robot')
 
         #Path to motor/camera device

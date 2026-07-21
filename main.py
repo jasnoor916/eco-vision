@@ -43,12 +43,12 @@ def parse_args():
     parser.add_argument(
         "--camera",
         type=camera_source,
-        default=None,
+        default=1,
         help="Camera index or path (default: 0 for laptop; ROBOT_CAMERA for robot).",
     )
     parser.add_argument(
         "--motor-port",
-        default=os.getenv("ROBOT_MOTOR_PORT", "/dev/tty.usbserial-FT94ELHH"),
+        default="COM3",
         help="Robot motor serial port (robot mode only).",
     )
     return parser.parse_args()
@@ -165,6 +165,8 @@ def main():
             h, w = frame.shape[:2]
 
             hand_results = hand_model.predict(frame, conf=HAND_CONF, verbose=False)[0]
+            item_results = item_model.predict(frame)[0]
+            
 
             grip_active = False
             label_this_frame = None
@@ -191,54 +193,37 @@ def main():
                     cx1, cy1, cx2, cy2 = expand_box(
                         x1, y1, x2, y2, CROP_MARGIN, w, h
                     )
-                    crop = frame[cy1:cy2, cx1:cx2]
 
-                    if crop.size > 0:
-                        crop_processed = crop.copy()
-                        if crop_processed.dtype != np.uint8:
-                            crop_processed = crop_processed.astype(np.uint8)
 
-                        kwargs = dict(conf=ITEM_CONF, verbose=False)
-                        if TARGET_CLASSES is not None:
-                            kwargs["classes"] = TARGET_CLASSES
+                    if len(item_results.boxes) > 0:
+                        best_i = int(item_results.boxes.conf.argmax())
+                        cls_id = int(item_results.boxes.cls[best_i])
+                        conf_this_frame = float(item_results.boxes.conf[best_i])
+                        label_this_frame = item_model.names[cls_id]
 
-                        item_results = item_model.predict(crop_processed, **kwargs)[0]
-                        print(
-                            f"item boxes found: {len(item_results.boxes)}",
-                            [item_model.names[int(c)] for c in item_results.boxes.cls]
-                            if len(item_results.boxes)
-                            else "none",
+                        ix1, iy1, ix2, iy2 = (
+                            item_results.boxes.xyxy[best_i].cpu().numpy()
+                        )
+                        cv2.rectangle(
+                            frame,
+                            (cx1 + int(ix1), cy1 + int(iy1)),
+                            (cx1 + int(ix2), cy1 + int(iy2)),
+                            (0, 0, 255),
+                            2,
+                        )
+                        cv2.putText(
+                            frame,
+                            f"{label_this_frame} {conf_this_frame:.2f}",
+                            (cx1 + int(ix1), cy1 + int(iy1) - 8),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.6,
+                            (0, 0, 255),
+                            2,
                         )
 
-                        if len(item_results.boxes) > 0:
-                            best_i = int(item_results.boxes.conf.argmax())
-                            cls_id = int(item_results.boxes.cls[best_i])
-                            conf_this_frame = float(item_results.boxes.conf[best_i])
-                            label_this_frame = item_model.names[cls_id]
-
-                            ix1, iy1, ix2, iy2 = (
-                                item_results.boxes.xyxy[best_i].cpu().numpy()
-                            )
-                            cv2.rectangle(
-                                frame,
-                                (cx1 + int(ix1), cy1 + int(iy1)),
-                                (cx1 + int(ix2), cy1 + int(iy2)),
-                                (0, 0, 255),
-                                2,
-                            )
-                            cv2.putText(
-                                frame,
-                                f"{label_this_frame} {conf_this_frame:.2f}",
-                                (cx1 + int(ix1), cy1 + int(iy1) - 8),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                0.6,
-                                (0, 0, 255),
-                                2,
-                            )
-
-                            palm_width = np.linalg.norm(kpts[5] - kpts[17])
-                            tip_spread = np.linalg.norm(kpts[8] - kpts[20])
-                            print(f"spread ratio: {tip_spread / palm_width:.2f}")
+                        palm_width = np.linalg.norm(kpts[5] - kpts[17])
+                        tip_spread = np.linalg.norm(kpts[8] - kpts[20])
+                        print(f"spread ratio: {tip_spread / palm_width:.2f}")
 
             if grip_active and label_this_frame is not None:
                 recent_labels.append(label_this_frame)
