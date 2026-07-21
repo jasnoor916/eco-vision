@@ -1,13 +1,24 @@
-# Fine-tuning dataset: the ORIGINAL training set PLUS your captured images
-# (data/custom, produced by capture_dataset.py). Mixing old + new prevents the
-# model from forgetting its original classes while it adapts to your camera.
+# CUSTOM-ONLY fine-tuning: train on just your captured images (data/custom),
+# starting from models/best.pt. Fast, and makes the model excellent at YOUR
+# items in YOUR room.
+#
+# TRADE-OFF: because the original images are NOT included here, the model will
+# gradually forget classes it no longer sees (catastrophic forgetting). That's
+# acceptable if your demo only shows items you captured. To keep a general
+# recycler instead, add `- train/images` under train: (and restore
+# val: valid/images) to mix the original set back in.
+#
+# val points at the custom images too (not the original valid set): with
+# custom-only training the model deliberately drifts away from the original
+# distribution, so validating on it would tank the score and trip early
+# stopping. NOTE: train == val here means the reported mAP is optimistic
+# (no held-out data) — treat it as "did it fit?", and judge real quality by
+# running the live app.
 #
 # No `path:` key on purpose — Ultralytics resolves these relative to THIS
 # file's own folder (data/), so it works from any working directory.
-train:
-  - train/images
-  - custom/images
-val: valid/images
+train: custom/images
+val: custom/images
 test: test/images
 
 nc: 5

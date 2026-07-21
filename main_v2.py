@@ -1,7 +1,12 @@
 """
-Live pipeline on Gretchen's own camera:
-  hand landmarks -> grip check -> item detection (only when gripped) ->
+Grip-free live pipeline on Gretchen's camera:
+  detect a recycling item in the full frame -> stable-vote over recent frames ->
   actions.trigger() (Groq advice + TTS + nod/shake, from actions.py)
+
+Unlike main.py, this version does NOT require the item to be gripped by a hand.
+It runs the item detector on every frame and reacts to whatever recyclable it
+sees. Robot gestures still happen automatically in robot mode, because
+actions.trigger() -> get_recycling_advice() nods/shakes based on the advice.
 """
 
 import argparse
@@ -21,6 +26,35 @@ from voting import weighted_vote
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 # ----------------------------------------------------------------------
+# CONFIG
+# ----------------------------------------------------------------------
+# Custom recycling detector. Its classes are:
+#   {0: 'Glass', 1: 'Metal', 2: 'Paper', 3: 'Plastic', 4: 'Waste'}
+ITEM_MODEL_PATH = "models/best.pt"
+TARGET_CLASSES = None       # None = detect all recycling classes above
+
+# Detection runs inside a central region of the frame (see ROI_SCALE), which
+# zooms in on the presented item and hides cluttered edges. That confidence
+# boost lets us keep the threshold reasonably high to reject background junk.
+ITEM_CONF = 0.35
+
+# Region-of-interest: fraction of the frame (centered) that we actually search.
+# This replaces the grip gate — it says "only react to items held up in the
+# middle." Smaller = tighter/less background but you must present items centered;
+# larger = more forgiving but more clutter creeps in.
+ROI_SCALE = 0.45
+
+# Stable-vote debounce: fire once VOTE_THRESHOLD of the last VOTE_WINDOW frames
+# agree on a label. Tolerates flicker without demanding a perfect streak.
+VOTE_WINDOW = 6
+VOTE_THRESHOLD = 4
+
+# Re-arm policy ("once per appearance"): after firing for an item, don't fire
+# again until the frame has been empty for EMPTY_REARM consecutive frames, i.e.
+# the item was taken away and (maybe) a new one shown. Raise it to require a
+# longer clear gap; lower it to re-arm sooner.
+EMPTY_REARM = 5
+# ----------------------------------------------------------------------
 
 
 def camera_source(value):
@@ -33,7 +67,7 @@ def camera_source(value):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Run the EcoVision pipeline with a laptop camera or Gretchen."
+        description="Run the grip-free EcoVision pipeline with a laptop camera or Gretchen."
     )
     parser.add_argument(
         "--mode",
@@ -53,62 +87,11 @@ def parse_args():
         help="Robot motor serial port (robot mode only).",
     )
     return parser.parse_args()
-# CONFIG
-# ----------------------------------------------------------------------
-HAND_MODEL_PATH = "models/Hand detection/best.pt"  # from your friend's fine-tuning
 
-# Custom recycling detector. Its classes are:
-#   {0: 'Glass', 1: 'Metal', 2: 'Paper', 3: 'Plastic', 4: 'Waste'}
-# NOTE: class ids are model-specific. The old COCO ids [39, 41] (bottle/cup)
-# do NOT exist in this model and would filter out every detection.
-ITEM_MODEL_PATH = "models/best.pt"
-TARGET_CLASSES = None  # None = detect all recycling classes above
-
-HAND_CONF = 0.5
-ITEM_CONF = 0.25
-CROP_MARGIN = 1.2          # expand hand bbox 120% each side so the whole item (not just the grip) lands in the crop
-GRIP_SPREAD_RATIO = 1.15
-# Responsiveness vs. stability. Instead of demanding a perfect streak, trigger
-# as soon as VOTE_THRESHOLD of the last VOTE_WINDOW gripped frames agree on a
-# label. This tolerates the occasional dropped ("none") frame, so it fires
-# quickly instead of waiting for the flicker to line up.
-VOTE_WINDOW = 6            # how many recent gripped frames to look at
-VOTE_THRESHOLD = 4         # how many of them must agree before triggering (lower = snappier)
-# ----------------------------------------------------------------------
-
-
-def is_gripping(kpts_xy: np.ndarray) -> bool:
-    """kpts_xy: (21, 2) array of pixel coordinates for one hand.
-
-    Compares how far apart the fingertips are (index tip to pinky tip)
-    against palm width (index knuckle to pinky knuckle). An open flat hand
-    has fingertips spread much wider than the palm; a closed fist OR a
-    hand wrapped around an object both bring the fingertips close together
-    relative to palm width — which is exactly the "gripping something"
-    signal we want, without over-penalizing a grip that isn't fully closed
-    because there's an object in the way.
-    """
-    palm_width = np.linalg.norm(kpts_xy[5] - kpts_xy[17])   # index MCP <-> pinky MCP
-    tip_spread = np.linalg.norm(kpts_xy[8] - kpts_xy[20])   # index tip <-> pinky tip
-
-    if palm_width < 1e-6:
-        return False
-
-    return (tip_spread / palm_width) < GRIP_SPREAD_RATIO
-
-
-def expand_box(x1, y1, x2, y2, margin, frame_w, frame_h):
-    w, h = x2 - x1, y2 - y1
-    x1 = max(0, int(x1 - w * margin))
-    y1 = max(0, int(y1 - h * margin))
-    x2 = min(frame_w, int(x2 + w * margin))
-    y2 = min(frame_h, int(y2 + h * margin))
-    return x1, y1, x2, y2
 
 def wait_for_camera(read_frame, max_attempts=30, delay=0.2):
-    """Some cameras return empty frames for the first few reads after
-    startup. Poll until a real frame comes through instead of crashing
-    on the first getImage() call."""
+    """Some cameras return empty frames for the first few reads after startup.
+    Poll until a real frame comes through instead of crashing on the first read."""
     for attempt in range(max_attempts):
         try:
             ret, frame = read_frame()
@@ -149,12 +132,12 @@ def open_camera(args):
 
 def main():
     args = parse_args()
-    hand_model = YOLO(HAND_MODEL_PATH)
     item_model = YOLO(ITEM_MODEL_PATH)
 
     read_frame, close_camera, source = open_camera(args)
     recent_preds = deque(maxlen=VOTE_WINDOW)
-    already_triggered_this_grip = False
+    armed = True            # ready to fire for the next stable item
+    empty_streak = 0        # consecutive frames with no detection
 
     try:
         cv2.namedWindow("Gretchen Vision")
@@ -170,106 +153,89 @@ def main():
                 continue
             h, w = frame.shape[:2]
 
-            hand_results = hand_model.predict(frame, conf=HAND_CONF, verbose=False)[0]
+            # Detect only inside a centered region-of-interest. This zooms in on
+            # the presented item (boosting confidence) and ignores background
+            # clutter at the edges — the job the grip gate used to do.
+            rx1 = int(w * (1 - ROI_SCALE) / 2)
+            ry1 = int(h * (1 - ROI_SCALE) / 2)
+            rx2 = w - rx1
+            ry2 = h - ry1
+            roi = frame[ry1:ry2, rx1:rx2]
+            cv2.rectangle(frame, (rx1, ry1), (rx2, ry2), (180, 180, 180), 1)
 
-            grip_active = False
+            kwargs = dict(conf=ITEM_CONF, verbose=False)
+            if TARGET_CLASSES is not None:
+                kwargs["classes"] = TARGET_CLASSES
+            item_results = item_model.predict(roi, **kwargs)[0]
+
+            # Diagnostic: show what the model sees every frame (like main.py did).
+            print(
+                f"item boxes found: {len(item_results.boxes)}",
+                [
+                    f"{item_model.names[int(c)]} {float(p):.2f}"
+                    for c, p in zip(item_results.boxes.cls, item_results.boxes.conf)
+                ]
+                if len(item_results.boxes)
+                else "none",
+            )
+
             label_this_frame = None
             conf_this_frame = 0.0
 
-            if hand_results.keypoints is not None and len(hand_results.boxes) > 0:
-                best_idx = int(hand_results.boxes.conf.argmax())
-                box = hand_results.boxes.xyxy[best_idx].cpu().numpy()
-                kpts = hand_results.keypoints.xy[best_idx].cpu().numpy()
+            if len(item_results.boxes) > 0:
+                best_i = int(item_results.boxes.conf.argmax())
+                cls_id = int(item_results.boxes.cls[best_i])
+                conf_this_frame = float(item_results.boxes.conf[best_i])
+                label_this_frame = item_model.names[cls_id]
 
-                x1, y1, x2, y2 = box
-                cv2.rectangle(
+                x1, y1, x2, y2 = item_results.boxes.xyxy[best_i].cpu().numpy()
+                # Detection is in ROI coordinates — shift back into the full frame.
+                bx1, by1 = rx1 + int(x1), ry1 + int(y1)
+                bx2, by2 = rx1 + int(x2), ry1 + int(y2)
+                cv2.rectangle(frame, (bx1, by1), (bx2, by2), (0, 0, 255), 2)
+                cv2.putText(
                     frame,
-                    (int(x1), int(y1)),
-                    (int(x2), int(y2)),
-                    (255, 200, 0),
+                    f"{label_this_frame} {conf_this_frame:.2f}",
+                    (bx1, by1 - 8),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 0, 255),
                     2,
                 )
-                for px, py in kpts:
-                    cv2.circle(frame, (int(px), int(py)), 3, (0, 255, 255), -1)
 
-                if is_gripping(kpts):
-                    grip_active = True
-                    cx1, cy1, cx2, cy2 = expand_box(
-                        x1, y1, x2, y2, CROP_MARGIN, w, h
-                    )
-                    crop = frame[cy1:cy2, cx1:cx2]
-
-                    if crop.size > 0:
-                        crop_processed = crop.copy()
-                        if crop_processed.dtype != np.uint8:
-                            crop_processed = crop_processed.astype(np.uint8)
-
-                        kwargs = dict(conf=ITEM_CONF, verbose=False)
-                        if TARGET_CLASSES is not None:
-                            kwargs["classes"] = TARGET_CLASSES
-
-                        item_results = item_model.predict(crop_processed, **kwargs)[0]
-                        print(
-                            f"item boxes found: {len(item_results.boxes)}",
-                            [item_model.names[int(c)] for c in item_results.boxes.cls]
-                            if len(item_results.boxes)
-                            else "none",
-                        )
-
-                        if len(item_results.boxes) > 0:
-                            best_i = int(item_results.boxes.conf.argmax())
-                            cls_id = int(item_results.boxes.cls[best_i])
-                            conf_this_frame = float(item_results.boxes.conf[best_i])
-                            label_this_frame = item_model.names[cls_id]
-
-                            ix1, iy1, ix2, iy2 = (
-                                item_results.boxes.xyxy[best_i].cpu().numpy()
-                            )
-                            cv2.rectangle(
-                                frame,
-                                (cx1 + int(ix1), cy1 + int(iy1)),
-                                (cx1 + int(ix2), cy1 + int(iy2)),
-                                (0, 0, 255),
-                                2,
-                            )
-                            cv2.putText(
-                                frame,
-                                f"{label_this_frame} {conf_this_frame:.2f}",
-                                (cx1 + int(ix1), cy1 + int(iy1) - 8),
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                0.6,
-                                (0, 0, 255),
-                                2,
-                            )
-
-                            palm_width = np.linalg.norm(kpts[5] - kpts[17])
-                            tip_spread = np.linalg.norm(kpts[8] - kpts[20])
-                            print(f"spread ratio: {tip_spread / palm_width:.2f}")
-
-            if grip_active:
-                # Record every gripped frame, including misses (None), so a
-                # brief detection dropout no longer wipes the running tally.
-                recent_preds.append((label_this_frame, conf_this_frame))
+            # Track empty frames so the trigger can re-arm once an item is removed.
+            if label_this_frame is None:
+                empty_streak += 1
+                if empty_streak >= EMPTY_REARM:
+                    armed = True
+                    recent_preds.clear()
             else:
-                recent_preds.clear()
-                already_triggered_this_grip = False
+                empty_streak = 0
 
-            if not already_triggered_this_grip:
+            recent_preds.append((label_this_frame, conf_this_frame))
+
+            # Fire once a label wins the vote — but only while "armed", so a
+            # single held-up item triggers once per appearance, not every frame.
+            if armed:
                 votes = [(lbl, c) for lbl, c in recent_preds if lbl is not None]
                 # Confidence-weighted: strong detections outvote weak flickers,
                 # and nobody wins while two classes are still contesting.
                 winner, winner_conf = weighted_vote(votes, VOTE_THRESHOLD)
                 if winner is not None:
+                    # In robot mode this also nods/shakes, inside actions.
                     actions.trigger(winner, winner_conf)
-                    already_triggered_this_grip = True
+                    armed = False
 
+            status = (
+                f"Detecting: {label_this_frame}" if label_this_frame else "no item"
+            )
             cv2.putText(
                 frame,
-                "GRIP" if grip_active else "no grip",
+                status,
                 (10, h - 15),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.7,
-                (0, 255, 0) if grip_active else (0, 0, 255),
+                (0, 255, 0) if label_this_frame else (0, 0, 255),
                 2,
             )
             display_frame = actions.draw_text(frame, actions.display_text)
