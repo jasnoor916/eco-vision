@@ -26,8 +26,6 @@ import edge_tts
 from groq import Groq
 from dotenv import load_dotenv
 
-from gretchen.robot import Robot
-
 # Load settings from the .env at the repo root (this file lives at the root, so
 # .env sits beside it). See .env for all options and per-OS values.
 load_dotenv(Path(__file__).resolve().parent / ".env")
@@ -42,27 +40,33 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 ROBOT_MOTOR_PORT = os.getenv("ROBOT_MOTOR_PORT", "/dev/tty.usbserial-FT94ELHH")
 ROBOT_CAMERA = _camera(os.getenv("ROBOT_CAMERA", "0"))
 
-if not GROQ_API_KEY:
-    raise SystemExit("GROQ_API_KEY is not set. Add it to the .env file at the project root.")
-
 VOICE = "en-GB-SoniaNeural"
 COOLDOWN = 10  # seconds — minimum gap between advice calls for the same label
 
-client = Groq(api_key=GROQ_API_KEY)
+client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
-# Temporary startup check for the configured Groq API key.
-try:
-    completion = client.chat.completions.create(
-        messages=[{"role": "user", "content": "Say hello in one word."}],
-        model="openai/gpt-oss-120b",
-    )
-    print("GROQ TEST SUCCESS:", completion.choices[0].message.content)
-except Exception as e:
-    print("GROQ TEST FAILED:", e)
+robot = None
 
-robot = Robot(ROBOT_MOTOR_PORT, ROBOT_CAMERA)
-robot.start()
-robot.start_motors()
+
+def start_robot(motor_port=ROBOT_MOTOR_PORT, camera=ROBOT_CAMERA):
+    """Initialize the robot only when the main program selects robot mode."""
+    global robot
+    from gretchen.robot import Robot
+
+    robot = Robot(motor_port, camera)
+    robot.start()
+    return robot
+
+
+def stop_robot():
+    """Release the robot camera and motor connection if they were started."""
+    global robot
+    if robot is None:
+        return
+    if robot.camera.vc is not None:
+        robot.camera.vc.release()
+    robot.disconnect()
+    robot = None
 
 _last_label = None
 _last_call_time = 0.0
@@ -70,6 +74,9 @@ display_text = "Show me something to recycle!"
 
 
 def nod():
+    if robot is None:
+        print("Robot disabled: skipping nod gesture.")
+        return
     for _ in range(3):
         robot.up()
         time.sleep(0.3)
@@ -79,6 +86,9 @@ def nod():
 
 
 def shake():
+    if robot is None:
+        print("Robot disabled: skipping shake gesture.")
+        return
     for _ in range(3):
         robot.left()
         time.sleep(0.3)
@@ -107,6 +117,9 @@ def draw_text(img, text):
 
 
 def get_recycling_advice(item_label: str) -> str:
+    if client is None:
+        return "System error: GROQ_API_KEY is not set in the project .env file."
+
     system_prompt = (
         "You are Gretchen, a recycling expert in South Korea. "
         "CRITICAL RULES: "

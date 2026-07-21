@@ -114,6 +114,24 @@ shakes accordingly.
 The Groq API key and the robot serial port are set at the top of
 `project/suggest.py`. Change the port to match your machine.
 
+### Main EcoVision pipeline
+
+Run the full hand, grip, item-detection, recycling-advice, and speech pipeline
+using only the laptop camera (no robot or motor initialization):
+
+```bash
+./.venv/bin/python 4_main.py --mode laptop
+```
+
+Run the same pipeline with Gretchen's camera, motors, and gestures:
+
+```bash
+./.venv/bin/python 4_main.py --mode robot
+```
+
+Use `--camera 1` to select a different laptop camera. In robot mode,
+`--camera` and `--motor-port` override the values from `.env`.
+
 ### Live camera detection
 
 ```bash
@@ -186,4 +204,3 @@ then reload the window.
 `gretchen/motors.py` reads terminal settings when the module is imported, so it
 needs a real terminal. This appears when running under a Jupyter kernel, CI, or
 a piped shell — run from an interactive terminal instead.
-
