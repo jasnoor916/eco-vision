@@ -8,8 +8,11 @@ opencv-python>=4.8
 numpy>=1.24
 matplotlib>=3.7
 
-# --- Reuse recommendations (project/suggest.py) ---------------------------
+# --- Reuse recommendations (actions.py, project/suggest.py) ---------------
 groq>=0.11
+
+# --- Configuration (.env loading, all robot scripts) ----------------------
+python-dotenv>=1.0
 
 # --- Text to speech (project/suggest.py) ----------------------------------
 # Playback uses macOS `afplay`; on Windows/Linux swap that call in suggest.py.

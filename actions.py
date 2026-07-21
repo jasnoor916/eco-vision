@@ -2,10 +2,10 @@
 Gretchen's action layer: robot gestures + Groq recycling advice + TTS.
 
 This is adapted from the existing suggest.py, with two changes:
-  1. The Groq API key now comes from an environment variable, not a
-     hardcoded string. Set it before running:
-         export GROQ_API_KEY="your_new_key_here"
-     (rotate the old key — it was pasted into a chat, treat it as leaked.)
+  1. The Groq API key, motor port, and camera now come from the .env file
+     at the project root, not hardcoded strings. Edit .env to match your
+     machine. (rotate the old key — it was pasted into a chat, treat it as
+     leaked.)
   2. get_recycling_advice() no longer assumes the item is specifically a
      "bottle" or "cup" — it takes whatever label the vision pipeline hands
      it (e.g. "Plastic", "Paper", "General", or a specific object name like
@@ -19,17 +19,35 @@ import asyncio
 import os
 import textwrap
 import time
+from pathlib import Path
 
 import cv2
 import edge_tts
 from groq import Groq
+from dotenv import load_dotenv
 
 from gretchen.robot import Robot
+
+# Load settings from the .env at the repo root (this file lives at the root, so
+# .env sits beside it). See .env for all options and per-OS values.
+load_dotenv(Path(__file__).resolve().parent / ".env")
+
+
+def _camera(value):
+    """A plain number is a camera index (int); anything else is a device path."""
+    return int(value) if value.isdigit() else value
+
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+ROBOT_MOTOR_PORT = os.getenv("ROBOT_MOTOR_PORT", "/dev/tty.usbserial-FT94ELHH")
+ROBOT_CAMERA = _camera(os.getenv("ROBOT_CAMERA", "0"))
+
+if not GROQ_API_KEY:
+    raise SystemExit("GROQ_API_KEY is not set. Add it to the .env file at the project root.")
 
 VOICE = "en-GB-SoniaNeural"
 COOLDOWN = 10  # seconds — minimum gap between advice calls for the same label
 
-GROQ_API_KEY = "GROQ_API_KEY_REDACTED"
 client = Groq(api_key=GROQ_API_KEY)
 
 # Temporary startup check for the configured Groq API key.
@@ -42,7 +60,7 @@ try:
 except Exception as e:
     print("GROQ TEST FAILED:", e)
 
-robot = Robot('/dev/tty.usbserial-FT94ELHH', 0)
+robot = Robot(ROBOT_MOTOR_PORT, ROBOT_CAMERA)
 robot.start()
 robot.start_motors()
 

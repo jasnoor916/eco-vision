@@ -7,13 +7,32 @@ import textwrap
 import asyncio
 import edge_tts
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load settings from the .env at the repo root (this file is project/suggest.py,
+# so the root is one directory up). See .env for all options and per-OS values.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
+
+def _camera(value):
+    """A plain number is a camera index (int); anything else is a device path."""
+    return int(value) if value.isdigit() else value
+
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+ROBOT_MOTOR_PORT = os.getenv("ROBOT_MOTOR_PORT", "/dev/tty.usbserial-FT94ELHH")
+ROBOT_CAMERA = _camera(os.getenv("ROBOT_CAMERA", "0"))
+
+if not GROQ_API_KEY:
+    raise SystemExit("GROQ_API_KEY is not set. Add it to the .env file at the project root.")
 
 # TTS Configuration
 VOICE = "en-GB-SoniaNeural"
 
 # Initialize
-client = Groq(api_key="GROQ_API_KEY_REDACTED")
-robot = Robot('/dev/tty.usbserial-FT94EO15', 0)
+client = Groq(api_key=GROQ_API_KEY)
+robot = Robot(ROBOT_MOTOR_PORT, ROBOT_CAMERA)
 robot.start()
 robot.start_motors()
 
