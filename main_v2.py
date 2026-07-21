@@ -135,6 +135,10 @@ def main():
     item_model = YOLO(ITEM_MODEL_PATH)
 
     read_frame, close_camera, source = open_camera(args)
+    # The ROI gate only helps the laptop webcam (messy room in the background).
+    # The robot camera is aimed straight at the presented item, so there we
+    # detect on the whole frame and skip the grey guide box.
+    use_roi = args.mode == "laptop"
     recent_preds = deque(maxlen=VOTE_WINDOW)
     armed = True            # ready to fire for the next stable item
     empty_streak = 0        # consecutive frames with no detection
@@ -153,15 +157,19 @@ def main():
                 continue
             h, w = frame.shape[:2]
 
-            # Detect only inside a centered region-of-interest. This zooms in on
-            # the presented item (boosting confidence) and ignores background
-            # clutter at the edges — the job the grip gate used to do.
-            rx1 = int(w * (1 - ROI_SCALE) / 2)
-            ry1 = int(h * (1 - ROI_SCALE) / 2)
-            rx2 = w - rx1
-            ry2 = h - ry1
+            # Laptop: detect inside a centered region-of-interest — zooms in on
+            # the presented item and ignores background clutter (the job the grip
+            # gate used to do). Robot: aimed at the item already, so use the
+            # whole frame (rx1/ry1 = 0 keeps the box-offset math below correct).
+            if use_roi:
+                rx1 = int(w * (1 - ROI_SCALE) / 2)
+                ry1 = int(h * (1 - ROI_SCALE) / 2)
+                rx2 = w - rx1
+                ry2 = h - ry1
+                cv2.rectangle(frame, (rx1, ry1), (rx2, ry2), (180, 180, 180), 1)
+            else:
+                rx1, ry1, rx2, ry2 = 0, 0, w, h
             roi = frame[ry1:ry2, rx1:rx2]
-            cv2.rectangle(frame, (rx1, ry1), (rx2, ry2), (180, 180, 180), 1)
 
             kwargs = dict(conf=ITEM_CONF, verbose=False)
             if TARGET_CLASSES is not None:
