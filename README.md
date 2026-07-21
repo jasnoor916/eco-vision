@@ -120,13 +120,13 @@ Run the full hand, grip, item-detection, recycling-advice, and speech pipeline
 using only the laptop camera (no robot or motor initialization):
 
 ```bash
-python 4_main.py --mode laptop
+python main.py --mode laptop
 ```
 
 Run the same pipeline with Gretchen's camera, motors, and gestures:
 
 ```bash
-python 4_main.py --mode robot
+python main.py --mode robot
 ```
 
 Use `--camera 1` to select a different laptop camera. In robot mode,
