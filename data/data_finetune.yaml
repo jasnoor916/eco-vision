@@ -1,0 +1,20 @@
+# Fine-tuning dataset: the ORIGINAL training set PLUS your captured images
+# (data/custom, produced by capture_dataset.py). Mixing old + new prevents the
+# model from forgetting its original classes while it adapts to your camera.
+#
+# No `path:` key on purpose — Ultralytics resolves these relative to THIS
+# file's own folder (data/), so it works from any working directory.
+train:
+  - train/images
+  - custom/images
+val: valid/images
+test: test/images
+
+nc: 5
+
+names:
+  0: Glass
+  1: Metal
+  2: Paper
+  3: Plastic
+  4: Waste
