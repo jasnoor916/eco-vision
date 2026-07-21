@@ -114,7 +114,28 @@ shakes accordingly.
 The Groq API key and the robot serial port are set at the top of
 `project/suggest.py`. Change the port to match your machine.
 
-### Live camera detection — requires hardware
+### Live camera detection
+
+```bash
+# Laptop camera only (does not initialize the robot or motors)
+python inference.py --mode laptop
+
+# Robot camera and motors
+python inference.py --mode robot
+```
+
+Both modes accept a camera index or device path. Robot mode also accepts a
+motor serial port:
+
+```bash
+python inference.py --mode laptop --camera 1
+python inference.py --mode robot --camera 0 --motor-port /dev/tty.usbserial-FT94ELHH
+
+# Show every available option
+python inference.py --help
+```
+
+Robot mode remains the default, so the original command still works:
 
 ```bash
 python inference.py
@@ -165,5 +186,4 @@ then reload the window.
 `gretchen/motors.py` reads terminal settings when the module is imported, so it
 needs a real terminal. This appears when running under a Jupyter kernel, CI, or
 a piped shell — run from an interactive terminal instead.
-
 
