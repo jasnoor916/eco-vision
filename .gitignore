@@ -6,20 +6,34 @@ __pycache__/
 venv/
 .venv/
 
+# Environment
+.env
+
 # macOS
 .DS_Store
 
 # VS Code
 .vscode/
 
+# Jupyter
+.ipynb_checkpoints/
+
 # YOLO outputs
 runs/
 eval/
 
-# Generated TTS audio
+# Generated files
 output.mp3
 
-# Jupyter
-.ipynb_checkpoints/
+# Dataset
+data/train/images/
+data/train/labels/
+data/test/images/
+data/test/labels/
+data/valid/images/
+data/valid/labels/
+*.cache
 
-
+# Model weights
+models/
+*.pt
