@@ -6,7 +6,7 @@ __pycache__/
 venv/
 .venv/
 
-# Environment
+# Environment variables
 .env
 
 # macOS
@@ -25,15 +25,15 @@ eval/
 # Generated files
 output.mp3
 
-# Dataset
-data/train/images/
-data/train/labels/
-data/test/images/
-data/test/labels/
-data/valid/images/
-data/valid/labels/
+# Datasets
+data/train/
+data/test/
+data/valid/
 *.cache
 
 # Model weights
 models/
 *.pt
+
+# Archives
+*.zip
